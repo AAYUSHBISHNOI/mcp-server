@@ -1,7 +1,11 @@
 import axios from "axios";
 import { N8N_BASE_URL, N8N_API_KEY } from "../config/index.js";
 
-function getHeaders() {
+export async function triggerWorkflow(webhookPath: string, payload: any = {}) {
+  const url = `${N8N_BASE_URL}/webhook/${webhookPath}`;
+
+  console.log("🚀 Trigger URL:", url);
+
   const headers: any = {
     "Content-Type": "application/json",
   };
@@ -10,29 +14,42 @@ function getHeaders() {
     headers["Authorization"] = `Bearer ${N8N_API_KEY}`;
   }
 
-  return headers;
+  const response = await axios.post(url, payload, { headers });
+  return response.data;
 }
 
-// 🔹 Trigger workflow
-export async function triggerWorkflow(webhookPath: string, payload: any = {}) {
-  const url = `${N8N_BASE_URL}/webhook/${webhookPath}`;
-  const res = await axios.post(url, payload, { headers: getHeaders() });
-  return res.data;
-}
-
-// 🔹 Send data
 export async function sendData(endpoint: string, data: any) {
   const url = `${N8N_BASE_URL}/webhook/${endpoint}`;
-  const res = await axios.post(url, data, { headers: getHeaders() });
-  return res.data;
+
+  console.log("📤 Send URL:", url);
+
+  const headers: any = {
+    "Content-Type": "application/json",
+  };
+
+  if (N8N_API_KEY) {
+    headers["Authorization"] = `Bearer ${N8N_API_KEY}`;
+  }
+
+  const response = await axios.post(url, data, { headers });
+  return response.data;
 }
 
-// 🔹 Fetch data
 export async function fetchResponse(endpoint: string, query: any = {}) {
   const url = `${N8N_BASE_URL}/webhook/${endpoint}`;
-  const res = await axios.get(url, {
-    headers: getHeaders(),
+
+  console.log("📥 Fetch URL:", url);
+
+  const headers: any = {};
+
+  if (N8N_API_KEY) {
+    headers["Authorization"] = `Bearer ${N8N_API_KEY}`;
+  }
+
+  const response = await axios.get(url, {
+    headers,
     params: query,
   });
-  return res.data;
+
+  return response.data;
 }
