@@ -9,6 +9,13 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
+// ✅ Define a flexible type for n8n response
+type N8nResult = {
+  reply?: string;
+  content?: { type: string; text: string }[];
+  [key: string]: any;
+};
+
 // =========================
 // MCP ENDPOINT
 // =========================
@@ -68,7 +75,7 @@ app.post("/mcp", async (req, res) => {
     if (method === "tools/call") {
       const { name, arguments: args } = params;
 
-      let result;
+      let result: N8nResult;
 
       if (name === "trigger_n8n_workflow") {
         result = await trigger_n8n_workflow(args);
@@ -76,7 +83,12 @@ app.post("/mcp", async (req, res) => {
         throw new Error(`Unknown tool: ${name}`);
       }
 
-      // 🔥 IMPORTANT: return n8n response to Claude
+      // ✅ Safely handle all response formats
+      const responseText =
+        result?.reply ??
+        result?.content?.[0]?.text ??
+        JSON.stringify(result);
+
       return res.json({
         jsonrpc: "2.0",
         id,
@@ -84,14 +96,16 @@ app.post("/mcp", async (req, res) => {
           content: [
             {
               type: "text",
-              text: result?.reply || JSON.stringify(result)
+              text: responseText
             }
           ]
         }
       });
     }
 
+    // =========================
     // UNKNOWN METHOD
+    // =========================
     return res.json({
       jsonrpc: "2.0",
       id,
