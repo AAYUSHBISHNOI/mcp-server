@@ -1,25 +1,44 @@
 import axios from "axios";
 
+/**
+ * Trigger an n8n workflow via webhook
+ * Expected args:
+ * {
+ *   webhookPath: string,
+ *   payload?: object
+ * }
+ */
 export async function triggerN8nWorkflow(args: any) {
-    const { webhookUrl, data } = args;
+    try {
+        const { webhookPath, payload } = args;
 
-    const response = await axios.post(webhookUrl, data);
+        if (!webhookPath) {
+            throw new Error("webhookPath is required");
+        }
 
-    return response.data;
-}
+        const baseUrl = process.env.N8N_BASE_URL;
 
-export async function sendDataToN8n(args: any) {
-    const { webhookUrl, payload } = args;
+        if (!baseUrl) {
+            throw new Error("N8N_BASE_URL is not defined in environment variables");
+        }
 
-    const response = await axios.post(webhookUrl, payload);
+        const url = `${baseUrl}/webhook/${webhookPath}`;
 
-    return response.data;
-}
+        console.log("Triggering n8n webhook:", url);
+        console.log("Payload:", payload);
 
-export async function fetchResponseFromN8n(args: any) {
-    const { url } = args;
+        const response = await axios.post(url, payload || {});
 
-    const response = await axios.get(url);
+        return {
+            success: true,
+            data: response.data,
+        };
+    } catch (error: any) {
+        console.error("Error triggering n8n workflow:", error.message);
 
-    return response.data;
+        return {
+            success: false,
+            error: error.message,
+        };
+    }
 }

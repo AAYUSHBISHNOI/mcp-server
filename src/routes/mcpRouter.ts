@@ -1,56 +1,30 @@
-import express from 'express';
-import {
-  trigger_n8n_workflow,
-  send_data_to_n8n,
-  fetch_response_from_n8n
-} from '../tools/claudeTools.js';
+import { triggerWorkflow } from "../services/n8nService.js";
 
-const router = express.Router();
+/**
+ * Claude → MCP → n8n
+ * This is the ONLY tool you need right now
+ */
 
-router.post('/', async (req, res) => {
-  const { tool, params } = req.body;
-
-  // Basic validation (because chaos is not a strategy)
-  if (!tool) {
-    return res.status(400).json({ error: 'Tool is required' });
-  }
-
+export async function trigger_n8n_workflow(params: any) {
   try {
-    let result;
+    const { webhookPath, payload } = params;
 
-    switch (tool) {
-      case 'trigger_n8n_workflow':
-        result = await trigger_n8n_workflow(params);
-        break;
-
-      case 'send_data_to_n8n':
-        result = await send_data_to_n8n(params);
-        break;
-
-      case 'fetch_response_from_n8n':
-        result = await fetch_response_from_n8n(params);
-        break;
-
-      default:
-        return res.status(400).json({
-          error: `Unknown tool: ${tool}`
-        });
+    if (!webhookPath) {
+      throw new Error("webhookPath is required");
     }
 
-    return res.json({
+    const result = await triggerWorkflow(webhookPath, payload || {});
+
+    return {
       success: true,
-      tool,
-      result
-    });
+      data: result,
+    };
+  } catch (error: any) {
+    console.error("MCP Router Error:", error.message);
 
-  } catch (err: any) {
-    console.error('MCP Tool Error:', err);
-
-    return res.status(500).json({
+    return {
       success: false,
-      error: err?.message || 'Internal server error'
-    });
+      error: error.message,
+    };
   }
-});
-
-export default router;
+}
