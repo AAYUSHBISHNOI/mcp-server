@@ -1,6 +1,5 @@
 import express from "express";
 import dotenv from "dotenv";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
 import {
   trigger_n8n_workflow,
@@ -8,34 +7,36 @@ import {
   fetch_response_from_n8n
 } from "./tools/claudeTools.js";
 
+import { PORT } from "./config/index.js";
+
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 
-const server = new Server({
-  name: "n8n-mcp-server",
-  version: "1.0.0"
-});
-
-
-// ✅ SINGLE HANDLER (NO setRequestHandler)
+// =========================
+// MCP ENDPOINT
+// =========================
 app.post("/mcp", async (req, res) => {
-  try {
-    const { method, params } = req.body;
+  const { id, method, params } = req.body;
 
+  try {
     // =========================
     // INITIALIZE
     // =========================
     if (method === "initialize") {
       return res.json({
-        protocolVersion: "2024-11-05",
-        capabilities: {
-          tools: {}
-        },
-        serverInfo: {
-          name: "n8n-mcp-server",
-          version: "1.0.0"
+        jsonrpc: "2.0",
+        id,
+        result: {
+          protocolVersion: "2024-11-05",
+          capabilities: {
+            tools: {}
+          },
+          serverInfo: {
+            name: "n8n-mcp-server",
+            version: "1.0.0"
+          }
         }
       });
     }
@@ -45,41 +46,48 @@ app.post("/mcp", async (req, res) => {
     // =========================
     if (method === "tools/list") {
       return res.json({
-        tools: [
-          {
-            name: "trigger_n8n_workflow",
-            description: "Trigger n8n workflow",
-            inputSchema: {
-              type: "object",
-              properties: {
-                webhookPath: { type: "string" },
-                payload: { type: "object" }
+        jsonrpc: "2.0",
+        id,
+        result: {
+          tools: [
+            {
+              name: "trigger_n8n_workflow",
+              description: "Trigger n8n workflow",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  webhookPath: { type: "string" },
+                  payload: { type: "object" }
+                },
+                required: ["webhookPath"]
+              }
+            },
+            {
+              name: "send_data_to_n8n",
+              description: "Send data to n8n webhook",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  endpoint: { type: "string" },
+                  data: { type: "object" }
+                },
+                required: ["endpoint"]
+              }
+            },
+            {
+              name: "fetch_response_from_n8n",
+              description: "Fetch data from n8n webhook",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  endpoint: { type: "string" },
+                  query: { type: "object" }
+                },
+                required: ["endpoint"]
               }
             }
-          },
-          {
-            name: "send_data_to_n8n",
-            description: "Send data to n8n",
-            inputSchema: {
-              type: "object",
-              properties: {
-                endpoint: { type: "string" },
-                data: { type: "object" }
-              }
-            }
-          },
-          {
-            name: "fetch_response_from_n8n",
-            description: "Fetch response from n8n",
-            inputSchema: {
-              type: "object",
-              properties: {
-                endpoint: { type: "string" },
-                query: { type: "object" }
-              }
-            }
-          }
-        ]
+          ]
+        }
       });
     }
 
@@ -109,32 +117,46 @@ app.post("/mcp", async (req, res) => {
       }
 
       return res.json({
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(result, null, 2)
-          }
-        ]
+        jsonrpc: "2.0",
+        id,
+        result: {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(result)
+            }
+          ]
+        }
       });
     }
 
     // =========================
     // UNKNOWN METHOD
     // =========================
-    return res.status(400).json({
-      error: `Unknown method: ${method}`
+    return res.json({
+      jsonrpc: "2.0",
+      id,
+      error: {
+        code: -32601,
+        message: "Method not found"
+      }
     });
 
   } catch (error: any) {
-    console.error(error);
-    res.status(500).json({
-      error: error.message
+    return res.json({
+      jsonrpc: "2.0",
+      id,
+      error: {
+        code: -32603,
+        message: error.message
+      }
     });
   }
 });
 
-
-// ✅ START SERVER
-app.listen(3000, () => {
-  console.log("✅ MCP Server running on port 3000");
+// =========================
+// START SERVER
+// =========================
+app.listen(PORT, () => {
+  console.log(`✅ MCP Server running on port ${PORT}`);
 });
