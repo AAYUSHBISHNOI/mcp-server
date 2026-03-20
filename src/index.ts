@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-dotenv.config(); // ✅ MUST BE FIRST
+dotenv.config();
 
 import express from "express";
 
@@ -15,22 +15,12 @@ import {
   getAllExecutions,
   getExecution,
   deleteExecution,
-} from "./tools/n8nTools.js"; // ✅ FIXED PATH
-
-import { PORT } from "./config/index.js";
+} from "./tools/n8nTools.js";
 
 const app = express();
 app.use(express.json());
 
-// =========================
-// TYPES
-// =========================
-
-type ToolResult = {
-  success: boolean;
-  data?: any;
-  error?: any;
-};
+const PORT = process.env.PORT || 3000;
 
 // =========================
 // TOOL REGISTRY
@@ -43,37 +33,33 @@ const tools = {
       type: "object",
       properties: {
         webhookPath: { type: "string" },
-        payload: { type: "object" }
+        payload: { type: "object" },
       },
-      required: ["webhookPath"]
-    }
+      required: ["webhookPath"],
+    },
   },
 
   get_all_workflows: {
     fn: getAllWorkflows,
-    schema: { type: "object", properties: {} }
+    schema: { type: "object", properties: {} },
   },
 
   get_workflow: {
     fn: getWorkflow,
     schema: {
       type: "object",
-      properties: {
-        id: { type: "string" }
-      },
-      required: ["id"]
-    }
+      properties: { id: { type: "string" } },
+      required: ["id"],
+    },
   },
 
   create_workflow: {
     fn: createWorkflow,
     schema: {
       type: "object",
-      properties: {
-        data: { type: "object" }
-      },
-      required: ["data"]
-    }
+      properties: { data: { type: "object" } },
+      required: ["data"],
+    },
   },
 
   update_workflow: {
@@ -82,71 +68,61 @@ const tools = {
       type: "object",
       properties: {
         id: { type: "string" },
-        data: { type: "object" }
+        data: { type: "object" },
       },
-      required: ["id", "data"]
-    }
+      required: ["id", "data"],
+    },
   },
 
   delete_workflow: {
     fn: deleteWorkflow,
     schema: {
       type: "object",
-      properties: {
-        id: { type: "string" }
-      },
-      required: ["id"]
-    }
+      properties: { id: { type: "string" } },
+      required: ["id"],
+    },
   },
 
   activate_workflow: {
     fn: activateWorkflow,
     schema: {
       type: "object",
-      properties: {
-        id: { type: "string" }
-      },
-      required: ["id"]
-    }
+      properties: { id: { type: "string" } },
+      required: ["id"],
+    },
   },
 
   deactivate_workflow: {
     fn: deactivateWorkflow,
     schema: {
       type: "object",
-      properties: {
-        id: { type: "string" }
-      },
-      required: ["id"]
-    }
+      properties: { id: { type: "string" } },
+      required: ["id"],
+    },
   },
 
   get_all_executions: {
     fn: getAllExecutions,
-    schema: { type: "object", properties: {} }
+    schema: { type: "object", properties: {} },
   },
 
   get_execution: {
     fn: getExecution,
     schema: {
       type: "object",
-      properties: {
-        id: { type: "string" }
-      },
-      required: ["id"]
-    }
+      properties: { id: { type: "string" } },
+      required: ["id"],
+    },
   },
 
   delete_execution: {
     fn: deleteExecution,
     schema: {
       type: "object",
-      properties: {
-        id: { type: "string" }
-      },
-      required: ["id"]
-    }
-  }
+      properties: { id: { type: "string" } },
+      required: ["id"],
+    },
+  },
 };
 
 // =========================
@@ -157,29 +133,21 @@ app.post("/mcp", async (req, res) => {
   const { id, method, params } = req.body;
 
   try {
-    // =========================
-    // INITIALIZE
-    // =========================
     if (method === "initialize") {
       return res.json({
         jsonrpc: "2.0",
         id,
         result: {
           protocolVersion: "2024-11-05",
-          capabilities: {
-            tools: {}
-          },
+          capabilities: { tools: {} },
           serverInfo: {
             name: "n8n-mcp-server",
-            version: "2.0.0"
-          }
-        }
+            version: "2.0.0",
+          },
+        },
       });
     }
 
-    // =========================
-    // LIST TOOLS
-    // =========================
     if (method === "tools/list") {
       return res.json({
         jsonrpc: "2.0",
@@ -188,72 +156,37 @@ app.post("/mcp", async (req, res) => {
           tools: Object.entries(tools).map(([name, tool]) => ({
             name,
             description: name.replace(/_/g, " "),
-            inputSchema: tool.schema
-          }))
-        }
+            inputSchema: tool.schema,
+          })),
+        },
       });
     }
 
-    // =========================
-    // CALL TOOL
-    // =========================
     if (method === "tools/call") {
       const { name, arguments: args } = params;
 
       const tool = tools[name as keyof typeof tools];
+      if (!tool) throw new Error(`Unknown tool: ${name}`);
 
-      if (!tool) {
-        throw new Error(`Unknown tool: ${name}`);
-      }
-
-      const result: ToolResult = await tool.fn(args || {});
-
-      let responseText: string;
-
-      if (result.success) {
-        responseText = `✅ Success:\n${JSON.stringify(
-          result.data ?? result,
-          null,
-          2
-        )}`;
-      } else {
-        responseText = `❌ Error:\n${result.error}`;
-      }
+      const result = await tool.fn(args || {});
 
       return res.json({
         jsonrpc: "2.0",
         id,
-        result: {
-          content: [
-            {
-              type: "text",
-              text: responseText
-            }
-          ]
-        }
+        result,
       });
     }
 
-    // =========================
-    // UNKNOWN METHOD
-    // =========================
     return res.json({
       jsonrpc: "2.0",
       id,
-      error: {
-        code: -32601,
-        message: "Method not found"
-      }
+      error: { code: -32601, message: "Method not found" },
     });
-
   } catch (error: any) {
     return res.json({
       jsonrpc: "2.0",
       id,
-      error: {
-        code: -32603,
-        message: error.message
-      }
+      error: { code: -32603, message: error.message },
     });
   }
 });

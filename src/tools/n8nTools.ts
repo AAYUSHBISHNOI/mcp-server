@@ -1,14 +1,12 @@
 import axios from "axios";
 
 // =========================
-// HELPERS (SAFE ENV ACCESS)
+// HELPERS
 // =========================
 
 function getBaseUrl() {
     const baseUrl = process.env.N8N_BASE_URL;
-    if (!baseUrl) {
-        throw new Error("N8N_BASE_URL is not defined");
-    }
+    if (!baseUrl) throw new Error("N8N_BASE_URL is not defined");
     return baseUrl;
 }
 
@@ -27,116 +25,126 @@ function getClient() {
 }
 
 // =========================
-// WORKFLOW MANAGEMENT
+// RESPONSE FORMATTER
+// =========================
+
+function success(data: any) {
+    return {
+        content: [
+            {
+                type: "text",
+                text: JSON.stringify(data, null, 2),
+            },
+        ],
+    };
+}
+
+function failure(err: any) {
+    return {
+        content: [
+            {
+                type: "text",
+                text: `❌ Error: ${err.response?.data || err.message}`,
+            },
+        ],
+    };
+}
+
+// =========================
+// WORKFLOWS
 // =========================
 
 export async function getAllWorkflows() {
     try {
-        const client = getClient();
-        const res = await client.get("/workflows");
-        return { success: true, data: res.data };
-    } catch (err: any) {
-        return { success: false, error: err.response?.data || err.message };
+        const res = await getClient().get("/workflows");
+        return success(res.data);
+    } catch (err) {
+        return failure(err);
     }
 }
 
 export async function getWorkflow({ id }: { id: string }) {
     try {
-        const client = getClient();
-        const res = await client.get(`/workflows/${id}`);
-        return { success: true, data: res.data };
-    } catch (err: any) {
-        return { success: false, error: err.response?.data || err.message };
+        const res = await getClient().get(`/workflows/${id}`);
+        return success(res.data);
+    } catch (err) {
+        return failure(err);
     }
 }
 
 export async function createWorkflow({ data }: { data: any }) {
     try {
-        const client = getClient();
-        const res = await client.post("/workflows", data);
-        return { success: true, data: res.data };
-    } catch (err: any) {
-        return { success: false, error: err.response?.data || err.message };
+        const res = await getClient().post("/workflows", data);
+        return success(res.data);
+    } catch (err) {
+        return failure(err);
     }
 }
 
-export async function updateWorkflow({
-    id,
-    data,
-}: {
-    id: string;
-    data: any;
-}) {
+export async function updateWorkflow({ id, data }: any) {
     try {
-        const client = getClient();
-        const res = await client.put(`/workflows/${id}`, data);
-        return { success: true, data: res.data };
-    } catch (err: any) {
-        return { success: false, error: err.response?.data || err.message };
+        const res = await getClient().put(`/workflows/${id}`, data);
+        return success(res.data);
+    } catch (err) {
+        return failure(err);
     }
 }
 
 export async function deleteWorkflow({ id }: { id: string }) {
     try {
-        const client = getClient();
-        await client.delete(`/workflows/${id}`);
-        return { success: true };
-    } catch (err: any) {
-        return { success: false, error: err.response?.data || err.message };
+        await getClient().delete(`/workflows/${id}`);
+        return success({ deleted: true });
+    } catch (err) {
+        return failure(err);
     }
 }
 
 export async function activateWorkflow({ id }: { id: string }) {
     try {
-        const client = getClient();
-        await client.patch(`/workflows/${id}/activate`);
-        return { success: true };
-    } catch (err: any) {
-        return { success: false, error: err.response?.data || err.message };
+        await getClient().patch(`/workflows/${id}/activate`);
+        return success({ activated: true });
+    } catch (err) {
+        return failure(err);
     }
 }
 
 export async function deactivateWorkflow({ id }: { id: string }) {
     try {
-        const client = getClient();
-        await client.patch(`/workflows/${id}/deactivate`);
-        return { success: true };
-    } catch (err: any) {
-        return { success: false, error: err.response?.data || err.message };
+        await getClient().patch(`/workflows/${id}/deactivate`);
+        return success({ deactivated: true });
+    } catch (err) {
+        return failure(err);
     }
 }
 
 // =========================
-// EXECUTION MANAGEMENT
+// EXECUTIONS
 // =========================
 
 export async function getAllExecutions() {
     try {
-        const client = getClient();
-        const res = await client.get("/executions");
-        return { success: true, data: res.data };
-    } catch (err: any) {
-        return { success: false, error: err.response?.data || err.message };
+        const res = await getClient().get("/executions");
+        return success(res.data);
+    } catch (err) {
+        return failure(err);
     }
 }
 
 export async function getExecution({ id }: { id: string }) {
     try {
-        const client = getClient();
-        const res = await client.get(`/executions/${id}`);
-        return { success: true, data: res.data };
-    } catch (err: any) {
-        return { success: false, error: err.response?.data || err.message };
+        const res = await getClient().get(`/executions/${id}`);
+        return success(res.data);
+    } catch (err) {
+        return failure(err);
     }
 }
 
 export async function deleteExecution({ id }: { id: string }) {
     try {
-        const client = getClient();
-        await client.delete(`/executions/${id}`);
-        return { success: true };
-    } catch (err: any) {
-        return { success: false, error: err.response?.data || err.message };
+        await getClient().delete(`/executions/${id}`);
+        return success({ deleted: true });
+    } catch (err) {
+        return failure(err);
     }
 }
 
@@ -148,25 +156,14 @@ export async function triggerN8nWorkflow(args: any) {
     try {
         const { webhookPath, payload } = args;
 
-        if (!webhookPath) {
-            throw new Error("webhookPath is required");
-        }
+        if (!webhookPath) throw new Error("webhookPath is required");
 
-        const baseUrl = getBaseUrl();
-        const url = `${baseUrl}/webhook/${webhookPath}`;
-
-        console.log("Triggering webhook:", url);
+        const url = `${getBaseUrl()}/webhook/${webhookPath}`;
 
         const res = await axios.post(url, payload || {});
 
-        return {
-            success: true,
-            data: res.data,
-        };
-    } catch (err: any) {
-        return {
-            success: false,
-            error: err.response?.data || err.message,
-        };
+        return success(res.data);
+    } catch (err) {
+        return failure(err);
     }
 }
