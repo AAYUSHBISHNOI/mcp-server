@@ -240,6 +240,14 @@ app.get("/", (req, res) => {
 // START SERVER
 // =========================
 
+app.get("/debug-check", (req, res) => {
+  res.json({
+    status: "NEW CODE LIVE ✅",
+    time: new Date().toISOString()
+  });
+});
+
+
 app.listen(PORT, () => {
   console.log(`✅ MCP Server running on port ${PORT}`);
 });
