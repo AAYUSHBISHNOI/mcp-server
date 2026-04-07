@@ -20,7 +20,7 @@ import {
 
 const app = express();
 app.use(express.json());
-app.use(cors({ origin: "*" })); // ✅ IMPORTANT for Claude
+app.use(cors({ origin: "*" }));
 
 const PORT = process.env.PORT || 3000;
 
@@ -128,7 +128,7 @@ const tools = {
 };
 
 // =========================
-// MCP JSON-RPC ENDPOINT (KEEP THIS)
+// MCP JSON-RPC ENDPOINT
 // =========================
 
 app.post("/mcp", async (req, res) => {
@@ -167,7 +167,7 @@ app.post("/mcp", async (req, res) => {
     if (method === "tools/call") {
       const { name, arguments: args } = params;
 
-      const tool = tools[name];
+      const tool = tools[name as keyof typeof tools];
       if (!tool) throw new Error(`Unknown tool: ${name}`);
 
       const result = await tool.fn(args || {});
@@ -189,16 +189,18 @@ app.post("/mcp", async (req, res) => {
     return res.json({
       jsonrpc: "2.0",
       id,
-      error: { code: -32603, message: error.message },
+      error: {
+        code: -32603,
+        message: error instanceof Error ? error.message : String(error),
+      },
     });
   }
 });
 
 // =========================
-// ✅ ADD THESE (CRITICAL FOR CLAUDE)
+// CLAUDE SUPPORT ROUTES
 // =========================
 
-// 👉 List tools (Claude uses this)
 app.get("/tools", (req, res) => {
   res.json({
     tools: Object.entries(tools).map(([name, tool]) => ({
@@ -209,12 +211,11 @@ app.get("/tools", (req, res) => {
   });
 });
 
-// 👉 Invoke tool (Claude uses this)
 app.post("/invoke", async (req, res) => {
   const { tool, input } = req.body;
 
   try {
-    const selectedTool = tools[tool];
+    const selectedTool = tools[tool as keyof typeof tools];
 
     if (!selectedTool) {
       return res.status(400).json({ error: "Tool not found" });
@@ -224,29 +225,30 @@ app.post("/invoke", async (req, res) => {
     res.json({ output: result });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 });
 
 // =========================
-// OPTIONAL ROOT (for testing)
+// HEALTH + DEBUG
 // =========================
 
 app.get("/", (req, res) => {
   res.send("MCP Server Running ✅");
 });
 
-// =========================
-// START SERVER
-// =========================
-
 app.get("/debug-check", (req, res) => {
   res.json({
     status: "NEW CODE LIVE ✅",
-    time: new Date().toISOString()
+    time: new Date().toISOString(),
   });
 });
 
+// =========================
+// START SERVER
+// =========================
 
 app.listen(PORT, () => {
   console.log(`✅ MCP Server running on port ${PORT}`);
