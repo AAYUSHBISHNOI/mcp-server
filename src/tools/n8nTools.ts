@@ -16,7 +16,7 @@ function getClient() {
 
     return axios.create({
         baseURL: `${baseUrl}/api/v1`,
-        timeout: 10000,
+        timeout: 15000,
         headers: {
             "Content-Type": "application/json",
             "X-N8N-API-KEY": apiKey || "",
@@ -25,7 +25,7 @@ function getClient() {
 }
 
 // =========================
-// RESPONSE FORMATTER
+// RESPONSE HELPERS
 // =========================
 
 function success(data: any) {
@@ -44,7 +44,15 @@ function failure(err: any) {
         content: [
             {
                 type: "text",
-                text: `❌ Error: ${err.response?.data || err.message}`,
+                text: JSON.stringify(
+                    {
+                        message: err?.message,
+                        status: err?.response?.status,
+                        data: err?.response?.data,
+                    },
+                    null,
+                    2
+                ),
             },
         ],
     };
@@ -63,7 +71,7 @@ export async function getAllWorkflows() {
     }
 }
 
-export async function getWorkflow({ id }: { id: string }) {
+export async function getWorkflow({ id }: any) {
     try {
         const res = await getClient().get(`/workflows/${id}`);
         return success(res.data);
@@ -72,7 +80,7 @@ export async function getWorkflow({ id }: { id: string }) {
     }
 }
 
-export async function createWorkflow({ data }: { data: any }) {
+export async function createWorkflow({ data }: any) {
     try {
         const res = await getClient().post("/workflows", data);
         return success(res.data);
@@ -90,7 +98,7 @@ export async function updateWorkflow({ id, data }: any) {
     }
 }
 
-export async function deleteWorkflow({ id }: { id: string }) {
+export async function deleteWorkflow({ id }: any) {
     try {
         await getClient().delete(`/workflows/${id}`);
         return success({ deleted: true });
@@ -99,7 +107,7 @@ export async function deleteWorkflow({ id }: { id: string }) {
     }
 }
 
-export async function activateWorkflow({ id }: { id: string }) {
+export async function activateWorkflow({ id }: any) {
     try {
         await getClient().patch(`/workflows/${id}/activate`);
         return success({ activated: true });
@@ -108,7 +116,7 @@ export async function activateWorkflow({ id }: { id: string }) {
     }
 }
 
-export async function deactivateWorkflow({ id }: { id: string }) {
+export async function deactivateWorkflow({ id }: any) {
     try {
         await getClient().patch(`/workflows/${id}/deactivate`);
         return success({ deactivated: true });
@@ -130,7 +138,7 @@ export async function getAllExecutions() {
     }
 }
 
-export async function getExecution({ id }: { id: string }) {
+export async function getExecution({ id }: any) {
     try {
         const res = await getClient().get(`/executions/${id}`);
         return success(res.data);
@@ -139,7 +147,7 @@ export async function getExecution({ id }: { id: string }) {
     }
 }
 
-export async function deleteExecution({ id }: { id: string }) {
+export async function deleteExecution({ id }: any) {
     try {
         await getClient().delete(`/executions/${id}`);
         return success({ deleted: true });
@@ -149,19 +157,13 @@ export async function deleteExecution({ id }: { id: string }) {
 }
 
 // =========================
-// WEBHOOK TRIGGER
+// WEBHOOK
 // =========================
 
-export async function triggerN8nWorkflow(args: any) {
+export async function triggerN8nWorkflow({ webhookPath, payload }: any) {
     try {
-        const { webhookPath, payload } = args;
-
-        if (!webhookPath) throw new Error("webhookPath is required");
-
         const url = `${getBaseUrl()}/webhook/${webhookPath}`;
-
         const res = await axios.post(url, payload || {});
-
         return success(res.data);
     } catch (err) {
         return failure(err);

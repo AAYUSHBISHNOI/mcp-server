@@ -29,106 +29,31 @@ const PORT = process.env.PORT || 3000;
 // =========================
 
 const tools = {
-  trigger_n8n_workflow: {
-    fn: triggerN8nWorkflow,
-    schema: {
-      type: "object",
-      properties: {
-        webhookPath: { type: "string" },
-        payload: { type: "object" },
-      },
-      required: ["webhookPath"],
-    },
-  },
+  trigger_n8n_workflow: { fn: triggerN8nWorkflow, schema: {} },
 
-  get_all_workflows: {
-    fn: getAllWorkflows,
-    schema: { type: "object", properties: {} },
-  },
+  get_all_workflows: { fn: getAllWorkflows, schema: {} },
 
-  get_workflow: {
-    fn: getWorkflow,
-    schema: {
-      type: "object",
-      properties: { id: { type: "string" } },
-      required: ["id"],
-    },
-  },
+  get_workflow: { fn: getWorkflow, schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
 
-  create_workflow: {
-    fn: createWorkflow,
-    schema: {
-      type: "object",
-      properties: { data: { type: "object" } },
-      required: ["data"],
-    },
-  },
+  create_workflow: { fn: createWorkflow, schema: { type: "object", properties: { data: { type: "object" } }, required: ["data"] } },
 
-  update_workflow: {
-    fn: updateWorkflow,
-    schema: {
-      type: "object",
-      properties: {
-        id: { type: "string" },
-        data: { type: "object" },
-      },
-      required: ["id", "data"],
-    },
-  },
+  update_workflow: { fn: updateWorkflow, schema: { type: "object", properties: { id: { type: "string" }, data: { type: "object" } }, required: ["id", "data"] } },
 
-  delete_workflow: {
-    fn: deleteWorkflow,
-    schema: {
-      type: "object",
-      properties: { id: { type: "string" } },
-      required: ["id"],
-    },
-  },
+  delete_workflow: { fn: deleteWorkflow, schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
 
-  activate_workflow: {
-    fn: activateWorkflow,
-    schema: {
-      type: "object",
-      properties: { id: { type: "string" } },
-      required: ["id"],
-    },
-  },
+  activate_workflow: { fn: activateWorkflow, schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
 
-  deactivate_workflow: {
-    fn: deactivateWorkflow,
-    schema: {
-      type: "object",
-      properties: { id: { type: "string" } },
-      required: ["id"],
-    },
-  },
+  deactivate_workflow: { fn: deactivateWorkflow, schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
 
-  get_all_executions: {
-    fn: getAllExecutions,
-    schema: { type: "object", properties: {} },
-  },
+  get_all_executions: { fn: getAllExecutions, schema: {} },
 
-  get_execution: {
-    fn: getExecution,
-    schema: {
-      type: "object",
-      properties: { id: { type: "string" } },
-      required: ["id"],
-    },
-  },
+  get_execution: { fn: getExecution, schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
 
-  delete_execution: {
-    fn: deleteExecution,
-    schema: {
-      type: "object",
-      properties: { id: { type: "string" } },
-      required: ["id"],
-    },
-  },
+  delete_execution: { fn: deleteExecution, schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
 };
 
 // =========================
-// MCP JSON-RPC ENDPOINT
+// MCP ENDPOINT
 // =========================
 
 app.post("/mcp", async (req, res) => {
@@ -157,7 +82,7 @@ app.post("/mcp", async (req, res) => {
         result: {
           tools: Object.entries(tools).map(([name, tool]) => ({
             name,
-            description: name.replace(/_/g, " "),
+            description: name,
             inputSchema: tool.schema,
           })),
         },
@@ -185,54 +110,22 @@ app.post("/mcp", async (req, res) => {
       error: { code: -32601, message: "Method not found" },
     });
 
-  } catch (error) {
+  } catch (error: any) {
+    console.error("MCP ERROR:", error);
+
     return res.json({
       jsonrpc: "2.0",
       id,
       error: {
         code: -32603,
-        message: error instanceof Error ? error.message : String(error),
+        message: error?.message || String(error),
       },
     });
   }
 });
 
 // =========================
-// CLAUDE SUPPORT ROUTES
-// =========================
-
-app.get("/tools", (req, res) => {
-  res.json({
-    tools: Object.entries(tools).map(([name, tool]) => ({
-      name,
-      description: name.replace(/_/g, " "),
-      input_schema: tool.schema,
-    })),
-  });
-});
-
-app.post("/invoke", async (req, res) => {
-  const { tool, input } = req.body;
-
-  try {
-    const selectedTool = tools[tool as keyof typeof tools];
-
-    if (!selectedTool) {
-      return res.status(400).json({ error: "Tool not found" });
-    }
-
-    const result = await selectedTool.fn(input || {});
-    res.json({ output: result });
-
-  } catch (err) {
-    res.status(500).json({
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-});
-
-// =========================
-// HEALTH + DEBUG
+// ROUTES
 // =========================
 
 app.get("/", (req, res) => {
@@ -241,13 +134,13 @@ app.get("/", (req, res) => {
 
 app.get("/debug-check", (req, res) => {
   res.json({
-    status: "NEW CODE LIVE ✅",
+    status: "OK",
     time: new Date().toISOString(),
   });
 });
 
 // =========================
-// START SERVER
+// START
 // =========================
 
 app.listen(PORT, () => {
